@@ -1,0 +1,52 @@
+﻿#!/bin/bash
+
+CARTON=/usr/local/bin/carton
+[ -x "${CARTON}" ] || exit 1
+
+LOG=/var/log/musicbrainz
+PIDFILE=/var/run/musicbrainz/server.pid
+
+cd $HOME/musicbrainz-server
+
+case "$1" in
+
+        start)
+                if [ -f "${PIDFILE}" ]; then
+                        echo "${PIDFILE}" exists. Is the server already running?
+                        exit 1
+                fi
+                $CARTON  exec -- plackup -Ilib -r >> $LOG/server.log 2>&1 &
+                PID=$!
+                echo $PID > "${PIDFILE}"
+                echo "Server started with PID=$PID"
+                ;;
+
+        stop)
+                if [ -f "${PIDFILE}" ]; then
+                        PID=$(cat "${PIDFILE}")
+                        kill $PID
+                        rm "${PIDFILE}"
+                        echo "Server stopped."
+                else
+                        echo "Can't find ${PIDFILE}. Is the server running?"
+                fi
+                ;;
+
+        hourly)
+                $CARTON exec -- ./admin/replication/LoadReplicationChanges >> $LOG/hourly.log 2>&1
+                ;;
+
+        daily)
+                #$CARTON exec -- ./admin/cron/daily.sh >> $LOG/daily.log 2>&1
+                ;;
+
+        weekly)
+                #$CARTON exec -- ./admin/cron/weekly.sh >> $LOG/weekly.log 2>&1
+                ;;
+
+        *)
+                echo $"Usage: $0 {start|stop|hourly|daily|weekly}"
+                exit 1
+esac
+
+exit 0
